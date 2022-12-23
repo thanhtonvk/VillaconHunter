@@ -1,0 +1,150 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class ModernBossController : MonoBehaviour
+{
+    private GameObject player;
+    private Animator animator;
+    private Rigidbody rigidbody;
+    private float speed = 15;
+    private int health = 15;
+    private bool isDead = false;
+    private bool attack = false;
+    private AudioSource audioSource;
+    public AudioClip zombieAttack, zombieDie, zombieRun, zombieIsFired;
+    public GameObject DNA;
+
+    void Start()
+    {
+        player = GameObject.Find("Player");
+        animator = GetComponent<Animator>();
+        rigidbody = GetComponent<Rigidbody>();
+        audioSource = GetComponent<AudioSource>();
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        if (!isDead)
+        {
+            if (checkNear())
+            {
+                if (!audioSource.isPlaying)
+                {
+                    audioSource.PlayOneShot(zombieRun);
+                }
+
+                Vector3 pos = Vector3.MoveTowards(transform.position, player.transform.position,
+                    speed * Time.deltaTime);
+                //I will use these two built-in functions to follow the player
+
+                gameObject.transform.LookAt(player.transform);
+                rigidbody.MovePosition(pos);
+                if (attack)
+                {
+                    if (!audioSource.isPlaying)
+                    {
+                        audioSource.PlayOneShot(zombieAttack);
+                    }
+
+                    animator.Play("Z_Attack");
+                }
+                else
+                {
+                    if (!audioSource.isPlaying)
+                    {
+                        audioSource.PlayOneShot(zombieRun);
+                    }
+
+                    animator.Play("Z_Run_InPlace");
+                }
+            }
+            else
+            {
+               
+            }
+        }
+    }
+
+    private void OnCollisionEnter(Collision other)
+    {
+        if (other.collider.CompareTag("Player") && !isDead)
+        {
+            attack = true;
+            PlayerManager.instance.isAttacked(2);
+            if (!audioSource.isPlaying)
+            {
+                audioSource.PlayOneShot(zombieAttack);
+            }
+        }
+
+        if (other.collider.CompareTag("Bullet") && !isDead)
+        {
+            audioSource.PlayOneShot(zombieIsFired);
+            Debug.Log(other.impulse.y);
+            float y = other.impulse.y;
+            if (y > 100)
+            {
+                PlayerManager.instance.playHeadShot();
+                health = 0;
+            }
+
+            health -= 1;
+
+            animator.Play("Z_Attack");
+        }
+
+        if (other.collider.CompareTag("Water"))
+        {
+            if (health < 0)
+            {
+                isDead = true;
+                Debug.Log("DEAD");
+                animator.Play("Z_FallingBack");
+
+                audioSource.PlayOneShot(zombieDie);
+                DNA.transform.position = gameObject.transform.position;
+                Destroy(gameObject, 2);
+                Instantiate(DNA, transform.position, transform.rotation);
+            }
+        }
+    }
+
+    private void OnCollisionExit(Collision other)
+    {
+        if (other.collider.CompareTag("Player"))
+        {
+            attack = false;
+        }
+    }
+
+    private float playerX, playerZ;
+    private float thresholdX = 100, thresholdZ = 100;
+
+    public bool checkNear()
+    {
+        playerX = player.transform.position.x;
+        playerZ = player.transform.position.z;
+        float playerY = player.transform.position.y;
+       
+        if (!transform.Equals(null))
+        {
+           
+                if (transform.position.x - thresholdX < playerX &&
+                    playerX < transform.position.x + thresholdX &&
+                    transform.position.z - thresholdZ < playerZ &&
+                    playerZ < transform.position.z + thresholdZ)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            
+        }
+
+        return false;
+    }
+}
